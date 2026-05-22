@@ -57,15 +57,7 @@ Key files
   - Main baseline attack implementations and shared utilities.
 - core/verification_thresholds.json
   - Dataset-specific thresholds for the victim models.
-
-Expected workflow for agents
-1. Read docs/trackA_assignment.md first.
-2. Check results_baseline/subset_attack_summary.csv to know the current best vanilla baseline.
-3. Use docs/subset_input_pairs.csv for first experiments.
-4. Implement one new attack that is not already present in core/transfer_attack_core.py.
-5. Keep new attack code clearly separated and documented.
-6. Compare the new attack against the 5 vanilla baselines using breach rate and impact.
-7. Save outputs as CSVs and provide a short summary report.
+.
 
 Current strongest vanilla baselines on the provided subset
 - SI_NI_FGSM
