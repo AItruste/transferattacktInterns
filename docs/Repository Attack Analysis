@@ -1,0 +1,22 @@
+PGD
+Computes gradient of loss w.r.t. image.
+Updates image in gradient direction.
+Simplest iterative attack.
+MI-FGSM
+Adds momentum accumulation.
+Prevents unstable gradient directions.
+Improves transferability.
+TI-FGSM
+Applies Gaussian smoothing to gradients.
+Makes perturbations less location-specific.
+Improves black-box transfer.
+SI-NI-FGSM
+Computes gradients at multiple image scales.
+Uses Nesterov momentum.
+Produces more generalized perturbations.
+MI-ADMIX-DI-TI
+Mixes images (ADMIX).
+Uses random resizing/padding (DI).
+Uses momentum (MI).
+Uses gradient smoothing (TI).
+Strongest baseline in repository.

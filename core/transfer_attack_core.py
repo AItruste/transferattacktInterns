@@ -25,6 +25,7 @@ ALL_ATTACKS = [
     'TI_FGSM',
     'SI_NI_FGSM',
     'MI_ADMIX_DI_TI',
+    'ATT',
 ]
 
 ATTACK_COLS = {
@@ -33,6 +34,7 @@ ATTACK_COLS = {
     'TI_FGSM': 'ti_fgsm_path',
     'SI_NI_FGSM': 'si_ni_fgsm_path',
     'MI_ADMIX_DI_TI': 'mi_admix_di_ti_path',
+    'ATT': 'att_path',
 }
 
 EPSILON = 0.062
@@ -162,6 +164,41 @@ def mi_fgsm(model, x, tgt_emb, attack_type):
         adv = tf.clip_by_value(adv, x - EPSILON, x + EPSILON)
         adv = tf.clip_by_value(adv, -1.0, 1.0)
     return adv
+def att_attack(model,x,tgt_emb,attack_type):
+    adv=tf.identity(x)
+
+    g=tf.zeros_like(x)
+
+    alpha=EPSILON/NUM_ITER
+
+    tgt_emb=tf.nn.l2_normalize(tgt_emb, axis=1)
+
+    for _ in range(NUM_ITER):
+
+        with tf.GradientTape() as tape:
+            tape.watch(adv)
+            emb=compute_embedding(model, adv)
+            cos=tf.reduce_sum(emb * tgt_emb, axis=1)
+            loss=attack_loss(cos, attack_type)
+
+        grad=tape.gradient(loss, adv)
+        #Gradient Variance Reduction of ATT
+        grad_var=tf.math.reduce_variance(grad)
+        grad=grad/(tf.sqrt(grad_var)+1e-8)
+        # ATT: Feature Preservation
+        mean_grad=tf.reduce_mean(tf.abs(grad))
+        strong_mask=tf.abs(grad)>mean_grad
+        grad = tf.where(strong_mask,grad * 0.7,grad)
+        # MI-FGSM normalization
+        grad=grad/(tf.reduce_mean(tf.abs(grad)) + 1e-8)
+        # Momentum
+        g=DECAY*g+grad
+        # Update image
+        adv=adv+alpha*tf.sign(g)
+        adv=tf.clip_by_value(adv,x-EPSILON,x+EPSILON)
+        adv=tf.clip_by_value(adv,-1.0,1.0)
+
+    return adv
 
 
 def ti_fgsm(model, x, tgt_emb, attack_type):
@@ -247,6 +284,8 @@ def run_attack(attack_name: str, model, src, tgt, attack_type: str, input_size):
         return pgd_attack(model, src, tgt_emb, attack_type)
     if attack_name == 'MI_FGSM':
         return mi_fgsm(model, src, tgt_emb, attack_type)
+    if attack_name == 'ATT':
+        return att_attack(model, src, tgt_emb, attack_type)
     if attack_name == 'TI_FGSM':
         return ti_fgsm(model, src, tgt_emb, attack_type)
     if attack_name == 'SI_NI_FGSM':
