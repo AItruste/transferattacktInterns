@@ -1,103 +1,122 @@
-# ATT Attack with Gradient Variance Reduction
+Understanding Transfer Attacks
 
-## Objective
+Transfer attacks are a way to create examples that can trick other models. This is done by using one model to create these examples and then seeing if they can fool models that we do not know about.
 
-The goal of this assignment was to study transfer attacks for face verification systems and implement an improvement to the ATT (Adaptive Transfer Attack) framework.
+It is important to have transferability because in real life attackers usually do not have access to the model they are trying to trick.
 
-The proposed improvement is Gradient Variance Reduction (GVR), which aims to stabilize gradients during iterative adversarial optimization and improve transferability across victim models.
+Baseline Attacks Studied
 
----
-
-## Understanding Transfer Attacks
-
-A transfer attack generates adversarial examples using a source model and then evaluates whether those examples can successfully fool unseen victim models.
-
-Good transferability is important because in real-world black-box scenarios the attacker usually does not have access to the victim model.
-
----
-
-## Baseline Attacks Studied
-
-The repository contained the following baseline attacks:
+The repository had the basic attacks:
 
 * PGD
+
 * MI-FGSM
+
 * TI-FGSM
+
 * SI-NI-FGSM
+
 * MI-ADMIX-DI-TI
 
-Each attack improves transferability using different techniques such as momentum, translation invariance, scale invariance, input diversity, and admixing.
+Each of these attacks uses different techniques like momentum, translation and scale to improve transferability.
 
----
+Problem: Gradient Variance
 
-## Problem: Gradient Variance
+When we try to optimize something the gradients can change a lot from one step to another.
 
-During iterative optimization, gradients can fluctuate significantly from one iteration to another.
+These changing gradients can cause the fake examples to work on the model we used to create them and not on other models.
 
-These unstable gradients may cause perturbations to overfit the source model and reduce their effectiveness against unseen victim models.
+Proposed Solution: Gradient Variance Reduction
 
----
+To make the gradients more stable we create copies of the fake image with some noise added.
 
-## Proposed Solution: Gradient Variance Reduction
+We calculate the gradients for each of these images.
 
-To reduce gradient instability, multiple noisy copies of the current adversarial image are created.
+Then we average all the gradients before updating the image.
 
-Gradients are computed for each noisy sample.
+This gives us a stable direction to follow.
 
-The gradients are averaged before updating the adversarial image.
+Expected Benefits
 
-This produces a more stable optimization direction.
+* Less noise in the gradients
 
-### Expected Benefits
+* stable optimization
 
-* Reduced gradient noise
-* Better optimization stability
-* Improved transferability
-* Reduced source-model overfitting
+* Better transferability
 
----
+* Less overfitting to the source model
 
-## Algorithm
+Algorithm
 
-For each iteration:
+For each step:
 
-1. Generate K noisy copies of the adversarial image.
-2. Compute gradients for each noisy sample.
-3. Average all gradients.
+1. Create noisy copies of the fake image.
+
+2. Calculate the gradients for each image.
+
+3. Average all the gradients.
+
 4. Normalize the averaged gradient.
-5. Update momentum.
-6. Update adversarial image.
+
+5. Update the momentum.
+
+6. Update the image.
+
 7. Apply epsilon clipping.
 
----
+Implementation
 
-## Implementation
+We changed the following file:
 
-Modified file:
+core/transfer_attack_core.py
 
-* core/transfer_attack_core.py
+We made the following changes:
 
-Changes made:
+* Added an attack called ATT
 
-* Added ATT attack entry
-* Added gradient variance reduction logic
-* Updated attack dispatcher
-* Generated ATT adversarial examples
+* Added the logic to reduce variance
 
----
+* Updated the attack dispatcher
 
-## Results
+* Generated examples using the ATT attack
 
-The ATT implementation successfully generated adversarial images.
+Results
 
-Output images were produced under:
+The ATT attack worked successfully and created fake images.
+
+These images were saved in:
 
 generated_outputs/ArcFace/ATT/
 
-The attack executed successfully without runtime errors.
+The attack ran without any errors.
 
----
+We added Gradient Variance Reduction, to the ATT attack. It worked well.
+Input:
+    Source image x
+    Target embedding y
+    Number of noisy samples K
 
-## Conclusion
+Initialize:
+    adv = x
+    momentum = 0
 
-Gradient Variance Reduction was integrated into ATT
+For each iteration:
+
+    avg_grad = 0
+
+    Repeat K times:
+        noisy_adv = adv + random_noise
+        Compute gradient g on noisy_adv
+        avg_grad += g
+
+    avg_grad = avg_grad / K
+
+    Normalize avg_grad
+
+    momentum = momentum + avg_grad
+
+    adv = adv + alpha * sign(momentum)
+
+    Clip adv within epsilon-ball
+
+Return adv
