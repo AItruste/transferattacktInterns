@@ -1,0 +1,14 @@
+Why the FPR Attack Cannot Be Implemented Here
+The FPR (Forward Propagation Refinement, CVPR 2025) attack is architecturally and framework-wise incompatible with the current face recognition setup for the following reasons:
+
+Architecture Mismatch (Vision Transformers vs. CNNs):
+
+FPR Design: FPR is specifically designed to improve adversarial transferability on Vision Transformers (ViTs). Its mathematical mechanism relies on perturbing intermediate features within self-attention and MLP blocks.
+Our Models: The attacker (surrogate) models in this project—Facenet512 (Inception-ResNet), ArcFace (ResNet/IResNet), GhostFaceNet, and VGG-Face—are all Convolutional Neural Networks (CNNs). They do not possess the self-attention, tokenization, or Transformer blocks that the FPR attack is designed to manipulate.
+Hook-Based Implementation Dependency:
+
+FPR Mechanism: The PyTorch implementation of FPR utilizes PyTorch forward hooks (register_forward_hook) to intercept, store, and manipulate activations at specific attention blocks (attn_drop, attn, mlp) in ViTs during the forward pass.
+Our Framework: In our codebase (
+
+transfer_attack_core.py
+), the attacker models are loaded in TensorFlow/Keras via the DeepFace library. TensorFlow does not share PyTorch's hook-registration API, and our CNN layers do not map to the ViT attention layers needed by the PyTorch
