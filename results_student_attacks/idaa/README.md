@@ -16,3 +16,5 @@ This folder records a student-contributed attack adaptation that has been added 
 
 ## Important note
 The implementation has been integrated into `core/transfer_attack_core.py` for the shared CNN face-verification pipeline. This entry should be treated as an implementation record, not a full verification claim on the complete subset.
+
+Documentation updated for public repository contribution.
