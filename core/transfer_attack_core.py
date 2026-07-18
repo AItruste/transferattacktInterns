@@ -1676,8 +1676,8 @@ def run_attack(attack_name: str, model, src, tgt, attack_type: str, input_size):
         return dpa_hma(model, src, tgt_emb, attack_type)
     if attack_name == 'DYNAMIC_MORPH':
         return dynamic_morph_mi_fgsm(model, src, tgt, attack_type, input_size)
-     if attack_name == 'ANDA':
-         return anda_attack(model, src, tgt_emb, attack_type, input_size)
+    if attack_name == 'ANDA':
+        return anda_attack(model, src, tgt_emb, attack_type, input_size)
     if attack_name == 'DPA_HMA_ENSEMBLE':
         raise ValueError(
             'DPA_HMA_ENSEMBLE requires dpa_hma_ensemble(...) with victim-specific '
