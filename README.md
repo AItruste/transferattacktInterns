@@ -20,6 +20,7 @@ This repo is intentionally a standalone vanilla transfer-attack exercise.
 ## Completed student-contributed attacks
 - `BPA_CNN` — Om Singh Rawat, IIT Delhi — *Rethinking the Backward Propagation for Adversarial Transferability* (NeurIPS 2023)
 - `PGN` — Chidroopa Kanaparthy, Maharaja Agrasen Institute of Technology (MAIT) — *Boosting Adversarial Transferability by Achieving Flat Local Maxima* (NeurIPS 2023)
+- `MIG` — Lakshita Sharma, Bhagwan Parshuram Institute of Technology — *Transferable Adversarial Attack for Both Vision Transformers and Convolutional Networks via Momentum Integrated Gradients* (ICCV 2023)
 - `ADAMSI_FGM` — Bhumika Singh, SRM Institute of Science and Technology — *On the Convergence of an Adaptive Momentum Method for Adversarial Attacks* (AAAI 2024)
 - `BSR` — Chirag Sharma, IIIT Vadodara — *Boosting Adversarial Transferability by Block Shuffle and Rotation* (CVPR 2024)
 - `DECOWA` — Om Singh Rawat, IIT Delhi — *Boosting Adversarial Transferability across Model Genus by Deformation-Constrained Warping* (AAAI 2024)
@@ -47,8 +48,10 @@ This repo is intentionally a standalone vanilla transfer-attack exercise.
 - This currently ranks second among the verified student-contributed attacks on the provided subset.
 - LI_BOOST_MI (Charushi, IGDTUW): 35.21% breach rate, 0.2007 mean impact
 - This currently ranks third among the verified student-contributed attacks on the provided subset.
-- DeCowA (Om Singh Rawat, IIT Delhi): 32.50% breach rate, 0.1931 mean impact
+- MIG (Lakshita Sharma, Bhagwan Parshuram Institute of Technology): 33.54% breach rate, 0.1946 mean impact
 - This currently ranks fourth among the verified student-contributed attacks on the provided subset.
+- DeCowA (Om Singh Rawat, IIT Delhi): 32.50% breach rate, 0.1931 mean impact
+- This currently ranks fifth among the verified student-contributed attacks on the provided subset.
 - BPA_CNN (Om Singh Rawat, IIT Delhi): 30.21% breach rate, 0.1803 mean impact
 - This also ranks above the strongest vanilla baseline on the provided subset.
 - ATT_CNN (Keshav Raj, IIIT Delhi): 26.67% breach rate, 0.1646 mean impact
@@ -117,6 +120,8 @@ Read:
 - `results_student_attacks/att_cnn/att_cnn_vs_current_baseline_summary.csv`
 - `results_student_attacks/li_boost_mi/README.md`
 - `results_student_attacks/li_boost_mi/li_boost_mi_vs_current_baseline_summary.csv`
+- `results_student_attacks/mig/README.md`
+- `results_student_attacks/mig/mig_vs_baselines_summary.csv`
 - `results_student_attacks/gra/README.md`
 - `results_student_attacks/idaa/README.md`
 - `results_student_attacks/dpa_hma/README.md`
