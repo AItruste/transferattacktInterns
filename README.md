@@ -28,6 +28,7 @@ This repo is intentionally a standalone vanilla transfer-attack exercise.
 - `SIA` — Aditi Raj, IGDTUW — *Structure Invariant Transformation for better Adversarial Transferability* (ICCV 2023)
 - `OPS` — Kkartik Aggarwal, Delhi Technological University (DTU) — *Boosting Adversarial Transferability through Augmentation in Hypothesis Space* (CVPR 2025)
 - `ATT_CNN` — Keshav Raj, IIIT Delhi — CNN-side ATT-inspired adaptation motivated by *ATT* (NeurIPS 2024)
+- `ATT_CNN_PATCH` — Pratyush Kumar, KCC Institute of Technology and Management (A.K.T.U.) — CNN-side ATT-inspired stochastic patch-masking adaptation motivated by *ATT* (NeurIPS 2024)
 - `LI_BOOST_MI` — Charushi, IGDTUW — MI-style logarithmic-shift boosting transfer attack
 - `GRA` — Krish Bansal, Delhi Technological University (DTU) — *Boosting Adversarial Transferability via Gradient Relevance Attack* (ICCV 2023)
 - `IDAA` — Arnav Asthana, IIIT Delhi — student-contributed identity-aware / diversified attack adaptation integrated into the shared CNN face-verification pipeline
@@ -56,6 +57,8 @@ This repo is intentionally a standalone vanilla transfer-attack exercise.
 - This also ranks above the strongest vanilla baseline on the provided subset.
 - ATT_CNN (Keshav Raj, IIIT Delhi): 26.67% breach rate, 0.1646 mean impact
 - This verified result is tied with MI_FGSM on breach rate and remains below SI_NI_FGSM.
+- ATT_CNN_PATCH (Pratyush Kumar, KCC Institute of Technology and Management, A.K.T.U.): 23.54% breach rate, 0.1476 mean impact
+- This verified result is above TI_FGSM and PGD, but below the stronger vanilla baselines on the provided subset.
 - SIA_MI_TI (Janhavi Kishor, SRM University): 23.33% breach rate, 0.1376 mean impact
 - This verified result ranks below MI_ADMIX_DI_TI and above TI_FGSM on the provided subset.
 
