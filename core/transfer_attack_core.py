@@ -1,3 +1,4 @@
+import math
 import os
 import random
 import uuid
@@ -42,6 +43,7 @@ ALL_ATTACKS = [
     'IDAA',
     'DPA_HMA',
     'DYNAMIC_MORPH',
+    'ANDA',    
 ]
 
 ATTACK_COLS = {
@@ -66,6 +68,7 @@ ATTACK_COLS = {
     'IDAA': 'idaa_path',
     'DYNAMIC_MORPH': 'dynamic_morph_path',
     'DPA_HMA': 'dpa_hma_path',
+    'ANDA': 'anda_path',
 }
 
 EPSILON = 0.062
@@ -87,6 +90,9 @@ GRA_SIGN_DECAY = 0.94
 PGN_BETA = 3.0
 PGN_GAMMA = 0.5
 PGN_NUM_NEIGHBOR = 20
+ANDA_N_ENS = int(os.environ.get('TRANSFER_ATTACK_ANDA_N_ENS', '25'))
+ANDA_AUG_MAX = float(os.environ.get('TRANSFER_ATTACK_ANDA_AUG_MAX', '0.3'))
+ANDA_NUM_ITER = int(os.environ.get('TRANSFER_ATTACK_ANDA_NUM_ITER', str(NUM_ITER)))
 DPA_HMA_SEED = int(os.environ.get('TRANSFER_ATTACK_DPA_HMA_SEED', '1'))
 DPA_HMA_NUM_ITER = int(os.environ.get('TRANSFER_ATTACK_DPA_HMA_NUM_ITER', str(NUM_ITER)))
 DPA_HMA_ENSEMBLE_NUM_ITER = int(os.environ.get('TRANSFER_ATTACK_DPA_HMA_ENSEMBLE_NUM_ITER', str(DPA_HMA_NUM_ITER)))
@@ -1355,6 +1361,136 @@ def pgn_attack(model, x, tgt_emb, attack_type):
     return adv
 
 
+# ANDA (Asymptotically Normal Distribution Attack)
+# Paper basis: "Strong Transferable Adversarial Attacks via Ensembled
+# Asymptotically Normal Distribution Learning" (CVPR 2024), Fang et al.
+class ANDAStatistics:
+
+    def __init__(self, shape):
+        self.shape = tuple(shape)
+        self._flat_dim = int(np.prod(self.shape))
+        self.n_models = 0.0
+        self.noise_mean = tf.zeros((1,) + self.shape, dtype=tf.float32)
+        self.noise_cov_mat_sqrt = tf.zeros([0, self._flat_dim], dtype=tf.float32)
+ 
+    def collect_stat(self, noise):
+        """noise: tensor of shape (bs,) + self.shape, one gradient per augmentation."""
+        bs = int(noise.shape[0])
+        bs_f = float(bs)
+        # Running mean update, identical in form to the official:
+        #   mean_(t+1) = mean_t * n/(n+bs) + sum(noise)/(n+bs)
+        new_mean = (
+            self.noise_mean * (self.n_models / (self.n_models + bs_f))
+            + tf.reduce_sum(noise, axis=0, keepdims=True) / (self.n_models + bs_f)
+        )
+        # Deviation of each augmented sample from the *updated* mean, stacked
+        # as additional rows/columns of the covariance square-root matrix D.
+        dev = tf.reshape(noise - new_mean, [bs, self._flat_dim])
+        self.noise_cov_mat_sqrt = tf.concat([self.noise_cov_mat_sqrt, dev], axis=0)
+        self.noise_mean = new_mean
+        self.n_models += bs_f
+ 
+    def sample(self, n_sample=1, scale=1.0, seed=None):
+        """Draw perturbation(s) from the learned Gaussian posterior N(mean, cov)."""
+        if seed is not None:
+            tf.random.set_seed(seed)
+        mean = self.noise_mean
+        if scale == 0.0:
+            assert n_sample == 1
+            return mean
+        cov_sqrt = self.noise_cov_mat_sqrt
+        k = int(cov_sqrt.shape[0])
+        rand = tf.random.normal([n_sample, k])
+        cov_sample = tf.matmul(rand, cov_sqrt) / tf.sqrt(tf.cast(k - 1, tf.float32))
+        rand_sample = tf.reshape(cov_sample, (n_sample,) + self.shape)
+        return mean + scale * rand_sample
+ 
+ 
+def _anda_get_thetas(n_ens, min_r, max_r):
+    
+    n = int(round(math.sqrt(n_ens)))
+    if n * n != n_ens:
+        raise ValueError('ANDA requires n_ens to be a perfect square, as in the official implementation.')
+    coords = np.linspace(min_r, max_r, n)
+    thetas_ij = [(float(i), float(j)) for i in coords for j in coords]
+    return thetas_ij
+ 
+ 
+def _anda_translate_batch(batch, thetas_ij, width, height):
+   
+    transforms = []
+    for (i, j) in thetas_ij:
+        tx = i * (float(width) / 2.0)
+        ty = j * (float(height) / 2.0)
+        transforms.append([1.0, 0.0, tx, 0.0, 1.0, ty, 0.0, 0.0])
+    transforms = tf.constant(transforms, dtype=tf.float32)
+    out_shape = tf.constant([height, width], dtype=tf.int32)
+    return tf.raw_ops.ImageProjectiveTransformV3(
+        images=tf.cast(batch, tf.float32),
+        transforms=transforms,
+        output_shape=out_shape,
+        interpolation='BILINEAR',
+        fill_mode='CONSTANT',
+        fill_value=0.0,
+    )
+ 
+ 
+def anda_attack(
+    model,
+    x,
+    tgt_emb,
+    attack_type,
+    input_size,
+    n_ens: int = ANDA_N_ENS,
+    aug_max: float = ANDA_AUG_MAX,
+    num_iter: int = ANDA_NUM_ITER,
+    sample: bool = False,
+):
+    """ANDA adapted to embedding-based face verification.
+     The only intentional algorithmic substitution is the loss: the original
+    cross-entropy classification loss is replaced with this repository's
+    cosine-similarity `attack_loss(...)`, per assignment requirements.
+    """
+    thetas_ij = _anda_get_thetas(n_ens, -aug_max, aug_max)
+    width, height = int(input_size[0]), int(input_size[1])
+    alpha = EPSILON / num_iter
+    tgt_emb = tf.nn.l2_normalize(tgt_emb, axis=1)
+    is_impersonation = str(attack_type).strip().lower() == 'impersonation_attack'
+ 
+    xt = tf.identity(x)
+    stat = ANDAStatistics(shape=tuple(int(d) for d in x.shape[1:]))
+    sample_xt = None
+ 
+    for it in range(num_iter):
+        xt_batch = tf.repeat(xt, n_ens, axis=0)
+        with tf.GradientTape() as tape:
+            tape.watch(xt_batch)
+            aug_batch = _anda_translate_batch(xt_batch, thetas_ij, width, height)
+            emb = compute_embedding(model, aug_batch)
+            tgt_rep = tf.repeat(tgt_emb, n_ens, axis=0)
+            cos = tf.reduce_sum(emb * tgt_rep, axis=1)
+            loss = attack_loss(cos, attack_type)
+        grad = tape.gradient(loss, xt_batch)
+        grad = tf.where(tf.math.is_finite(grad), grad, tf.zeros_like(grad))
+ 
+        stat.collect_stat(grad)
+        sample_noise = stat.noise_mean
+ 
+        if sample and it == num_iter - 1:
+            sample_noise_draw = stat.sample(n_sample=1, scale=1.0)[0]
+            sample_xt = xt + alpha * tf.sign(sample_noise_draw)
+            sample_xt = tf.clip_by_value(sample_xt, x - EPSILON, x + EPSILON)
+            sample_xt = tf.clip_by_value(sample_xt, -1.0, 1.0)
+ 
+        xt = xt + alpha * tf.sign(sample_noise)
+        xt = tf.clip_by_value(xt, x - EPSILON, x + EPSILON)
+        xt = tf.clip_by_value(xt, -1.0, 1.0)
+ 
+    if sample:
+        return sample_xt
+    return xt
+
+
 def dpa_hma(model, x, tgt_emb, attack_type, num_copies: int = 8, num_iter: int = DPA_HMA_NUM_ITER):
     _ensure_dpa_hma_seed()
     tgt_emb = tf.nn.l2_normalize(tgt_emb, axis=1)
@@ -1626,6 +1762,8 @@ def run_attack(attack_name: str, model, src, tgt, attack_type: str, input_size):
         return dpa_hma(model, src, tgt_emb, attack_type)
     if attack_name == 'DYNAMIC_MORPH':
         return dynamic_morph_mi_fgsm(model, src, tgt, attack_type, input_size)
+    if attack_name == 'ANDA':
+        return anda_attack(model, src, tgt_emb, attack_type, input_size)
     if attack_name == 'DPA_HMA_ENSEMBLE':
         raise ValueError(
             'DPA_HMA_ENSEMBLE requires dpa_hma_ensemble(...) with victim-specific '
